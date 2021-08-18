@@ -1,0 +1,93 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "sourceId": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Resource ID of the Log Analytics workspace."
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Location for the alert. Must be the same location as the workspace."
+            }
+        },
+        "actionGroupId": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The ID of the action group that is triggered when the alert is activated."
+            }
+        }
+    },
+    "resources":[ 
+        {
+            "type":"Microsoft.Insights/scheduledQueryRules",
+            "name":"Sample log query alert",
+            "apiVersion": "2018-04-16",
+            "location": "[parameters('location')]",
+            "properties":{
+                "description": "Sample log query alert",
+                "enabled": "true",
+                "source": {
+                    "query": "Event | where EventLevelName == \"Error\" | summarize count() by Computer",
+                    "dataSourceId": "[parameters('sourceId')]",
+                    "queryType":"ResultCount"
+                },
+                "schedule":{
+                    "frequencyInMinutes": 15,
+                    "timeWindowInMinutes": 60
+                },
+                "action":{
+                    "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction",
+                    "severity": "4",
+                    "aznsAction":{
+                        "actionGroup": "[array(parameters('actionGroupId'))]",
+                        "emailSubject": "Alert mail subject",
+                        "customWebhookPayload":"{ \"alertname\":\"#alertrulename\", \"IncludeSearchResults\":true }"
+                    },
+                    "trigger":{
+                        "thresholdOperator": "GreaterThan",
+                        "threshold": 1
+                    }
+                }
+            }
+        },
+        {
+            "type":"Microsoft.Insights/scheduledQueryRules",
+            "name":"High CPU Usuage",
+            "apiVersion": "2018-04-16",
+            "location": "[parameters('location')]",
+            "properties":{
+                "description": "Triggers an alert for a high CPU usage condition",
+                "enabled": "true",
+                "source": {
+                    "query": "let _maxValue = 85; let _timeWindow = 4h; let _AvgCpu = Perf | where TimeGenerated >= ago(_timeWindow) | where CounterName == \"% Processor Time\"      and InstanceName =~ \"_Total\"  | summarize mtgPerf=max(TimeGenerated), CounterValue=round(avg(CounterValue)), SampleCount=count(CounterValue) by Computer, InstanceName, CounterName, ObjectName; _AvgCpu | where CounterValue > _maxValue | project      Computer     , ObjectName     , CounterName     , InstanceName     , TimeGenerated=mtgPerf     , CounterValue     , AlertType_s = \"Sustained High CPU Utilization\"     , Severity = 4     , SeverityName_s = \"WARNING\"     , AffectedCI_s = strcat(Computer, \"/CPUPercent/\", InstanceName)     , AlertTitle_s = strcat(Computer, \": Sustained High CPU Utilization\")     , AlertDetails_s = strcat(\"Computer: \", Computer, \"\\r\\nAverage CPU Utilization: \", CounterValue, \"%\\r\\nSample Period: Last \", _timeWindow, \"\\r\\nSample Count: \", SampleCount, \"\\r\\nAlert Threshold: > \", _maxValue, \"%\")",
+                    "dataSourceId": "[parameters('sourceId')]",
+                    "queryType":"ResultCount"
+                },
+                "schedule":{
+                    "frequencyInMinutes": 30,
+                    "timeWindowInMinutes": 240
+                },
+                "action":{
+                    "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction",
+                    "severity": "4",
+                    "aznsAction":{
+                        "actionGroup": "[array(parameters('actionGroupId'))]",
+                        "emailSubject": "Alert - High CPU Usaget",
+                        "customWebhookPayload":"{ \"alertname\":\"#alertrulename\", \"IncludeSearchResults\":true }"
+                    },
+                    "trigger":{
+                        "thresholdOperator": "GreaterThan",
+                        "threshold": 0
+                    }
+                }
+            }
+        }
+    ]
+}
